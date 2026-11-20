@@ -1,0 +1,29 @@
+# Dependencies & lockfiles (installed inside the image during build)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Git & version control
+.git/
+.gitignore
+
+# Local environment files & secrets
+.env
+.env.*
+
+# Build, test & coverage outputs
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Documentation & editor/OS files
+README.md
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
