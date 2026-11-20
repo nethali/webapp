@@ -1,23 +1,21 @@
-# Start with Alpine as the Base Layer
-FROM alpine
+FROM node:24-alpine
 
 LABEL author="Nethali Zoysa"
-LABEL description="Simple Web App in Node JS"
+LABEL description="Simple Web App in Node.js"
 LABEL version="1.0.0"
 
-# Install node and npm
-RUN apk add --update nodejs nodejs-npm
-
-# Copy files to /app directory
-COPY . /app
-
-# Make app as the working directory
 WORKDIR /app
 
-# Install dependencies
-RUN  npm install
+# Install dependencies first to leverage Docker layer caching
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# The port container will listen
+# Copy application source code
+COPY --chown=node:node . .
+
+# Run as non-root user
+USER node
+
 EXPOSE 8080
-ENTRYPOINT ["node", "./app.js"]
 
+CMD ["node", "app.js"]
