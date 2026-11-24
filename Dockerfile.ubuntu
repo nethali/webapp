@@ -1,0 +1,43 @@
+# Start from a standard Ubuntu base image so all setup steps are explicit
+FROM ubuntu:24.04
+
+# Attach metadata labels to the image
+LABEL author="Nethali Zoysa"
+LABEL description="Simple Web App in Node.js"
+LABEL version="1.0.0"
+
+# Avoid interactive prompts (such as timezone questions) during apt installs
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update package lists, install Node.js and npm, and clean up apt caches
+# to keep the image smaller
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nodejs npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a dedicated non-root user and group for running the application
+RUN groupadd --system appgroup && useradd --system --gid appgroup --create-home appuser
+
+# Set /app as the working directory inside the container
+WORKDIR /app
+
+# Give appuser ownership of /app before copying files and installing packages
+RUN chown -R appuser:appgroup /app
+
+# Switch to the non-root user for dependency installation and runtime
+USER appuser
+
+# Copy dependency manifests first so Docker can cache the install step
+COPY --chown=appuser:appgroup package*.json ./
+
+# Perform a clean install of production dependencies from package-lock.json
+RUN npm ci --omit=dev
+
+# Copy the rest of the application source code (respecting .dockerignore)
+COPY --chown=appuser:appgroup . .
+
+# Document that the app listens on port 8080
+EXPOSE 8080
+
+# Start the Express server
+CMD ["node", "app.js"]
