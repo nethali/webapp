@@ -1,43 +1,46 @@
-# Start from a standard Ubuntu base image so all setup steps are explicit
+# Start from a standard Ubuntu 24.04 base image
 FROM ubuntu:24.04
 
-# Attach metadata labels to the image
+# Attach metadata labels to identify the author, description, and variant/version
 LABEL author="Nethali Zoysa"
 LABEL description="Simple Web App in Node.js"
-LABEL version="1.0.0"
+LABEL version="ubuntu"
 
-# Avoid interactive prompts (such as timezone questions) during apt installs
+# Avoid interactive prompts during apt package installations
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update package lists, install Node.js and npm, and clean up apt caches
-# to keep the image smaller
+# Update apt package lists, install Node.js and npm without optional recommended packages,
+# and remove cached apt package lists in the same layer to keep the image smaller
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a dedicated non-root user and group for running the application
-RUN groupadd --system appgroup && useradd --system --gid appgroup --create-home appuser
+# Create a dedicated system group (nodegroup) and non-root user (nodeuser) with a home directory
+RUN groupadd --system nodegroup && useradd --system --gid nodegroup --create-home nodeuser
 
-# Set /app as the working directory inside the container
+# Set /app as the working directory inside the container for all subsequent instructions
 WORKDIR /app
 
-# Give appuser ownership of /app before copying files and installing packages
-RUN chown -R appuser:appgroup /app
+# Assign ownership of /app recursively to nodeuser:nodegroup before installing or copying files
+RUN chown -R nodeuser:nodegroup /app
 
-# Switch to the non-root user for dependency installation and runtime
-USER appuser
+# Switch from root to the non-root nodeuser for dependency installation and running the app
+USER nodeuser
 
-# Copy dependency manifests first so Docker can cache the install step
-COPY --chown=appuser:appgroup package*.json ./
+# Copy package manifests (package.json and package-lock.json if present) first so Docker
+# can reuse the cached dependency layer when only application source files change
+COPY --chown=nodeuser:nodegroup package*.json ./
 
-# Perform a clean install of production dependencies from package-lock.json
+# Perform a clean install of production-only dependencies (excluding devDependencies)
+# using the exact versions locked in package-lock.json
 RUN npm ci --omit=dev
 
-# Copy the rest of the application source code (respecting .dockerignore)
-COPY --chown=appuser:appgroup . .
+# Copy the remaining application source code (respecting .dockerignore) into /app
+# with ownership set to nodeuser:nodegroup
+COPY --chown=nodeuser:nodegroup . .
 
-# Document that the app listens on port 8080
+# Document that the Express application inside the container listens on port 8080
 EXPOSE 8080
 
-# Start the Express server
+# Launch the Node.js web server when the container starts
 CMD ["node", "app.js"]
