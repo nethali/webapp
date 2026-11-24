@@ -1,4 +1,4 @@
-# Start from a standard Ubuntu 24.04 base image
+# Start from a standard Ubuntu 24.04 base image so all setup steps are explicit
 FROM ubuntu:24.04
 
 # Attach metadata labels to identify the author, description, and variant/version
@@ -21,15 +21,9 @@ RUN groupadd --system nodegroup && useradd --system --gid nodegroup --create-hom
 # Set /app as the working directory inside the container for all subsequent instructions
 WORKDIR /app
 
-# Assign ownership of /app recursively to nodeuser:nodegroup before installing or copying files
-RUN chown -R nodeuser:nodegroup /app
-
-# Switch from root to the non-root nodeuser for dependency installation and running the app
-USER nodeuser
-
 # Copy package manifests (package.json and package-lock.json if present) first so Docker
 # can reuse the cached dependency layer when only application source files change
-COPY --chown=nodeuser:nodegroup package*.json ./
+COPY package*.json ./
 
 # Perform a clean install of production-only dependencies (excluding devDependencies)
 # using the exact versions locked in package-lock.json
@@ -38,6 +32,9 @@ RUN npm ci --omit=dev
 # Copy the remaining application source code (respecting .dockerignore) into /app
 # with ownership set to nodeuser:nodegroup
 COPY --chown=nodeuser:nodegroup . .
+
+# Switch from root to the non-root nodeuser for better container security at runtime
+USER nodeuser
 
 # Document that the Express application inside the container listens on port 8080
 EXPOSE 8080
